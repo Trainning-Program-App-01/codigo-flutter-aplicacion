@@ -1,93 +1,234 @@
 import 'package:flutter/material.dart';
+import 'package:prueba_proyecto/models/workout_models.dart';
+import 'package:prueba_proyecto/state/workout_store.dart';
+import 'package:prueba_proyecto/theme/app_theme.dart';
 
-class CreateWorkoutModal extends StatelessWidget {
-  const CreateWorkoutModal({super.key});
+class _BlockDraft {
+  _BlockDraft()
+      : name = TextEditingController(),
+        description = TextEditingController();
+
+  final TextEditingController name;
+  final TextEditingController description;
+
+  void dispose() {
+    name.dispose();
+    description.dispose();
+  }
+}
+
+class CreateWorkoutModal extends StatefulWidget {
+  const CreateWorkoutModal({super.key, required this.store});
+
+  final WorkoutStore store;
+
+  @override
+  State<CreateWorkoutModal> createState() => _CreateWorkoutModalState();
+}
+
+class _CreateWorkoutModalState extends State<CreateWorkoutModal> {
+  final TextEditingController _date = TextEditingController();
+  final List<_BlockDraft> _blocks = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _blocks.add(_BlockDraft());
+  }
+
+  @override
+  void dispose() {
+    _date.dispose();
+    for (final b in _blocks) {
+      b.dispose();
+    }
+    super.dispose();
+  }
+
+  void _addBlock() {
+    setState(() => _blocks.add(_BlockDraft()));
+  }
+
+  void _confirmBlock(int index) {
+    final b = _blocks[index];
+    if (b.name.text.trim().isEmpty || b.description.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Rellena el nombre y la descripción del bloque.'),
+          backgroundColor: AppColors.cardInner,
+        ),
+      );
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Bloque ${index + 1} guardado en el borrador.'),
+        backgroundColor: AppColors.card,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _createWorkout() {
+    if (_date.text.trim().isEmpty) {
+      _toast('Indica la fecha del entrenamiento.');
+      return;
+    }
+    final built = <WorkoutBlock>[];
+    for (final b in _blocks) {
+      if (b.name.text.trim().isEmpty || b.description.text.trim().isEmpty) {
+        _toast('Todos los bloques deben tener nombre y descripción.');
+        return;
+      }
+      built.add(
+        WorkoutBlock(
+          name: b.name.text.trim(),
+          description: b.description.text.trim(),
+        ),
+      );
+    }
+    final workout = Workout(
+      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      dateLabel: _date.text.trim(),
+      blocks: built,
+    );
+    widget.store.addWorkout(workout);
+    Navigator.of(context).pop(true);
+  }
+
+  void _toast(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: AppColors.cardInner),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    const Color neonColor = Color(0xFF4DB6AC);
-
     return Dialog(
-      backgroundColor: Colors.transparent, // Lo pongo transparente para usar mi propio contenedor redondeado
+      backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 20),
       child: Stack(
-        clipBehavior: Clip.none, // Esto es para que la X de cerrar pueda sobresalir del cuadro
+        clipBehavior: Clip.none,
         children: [
-          // Caja principal del modal de creación
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(25),
+            constraints: const BoxConstraints(maxHeight: 560),
+            padding: const EdgeInsets.fromLTRB(20, 28, 20, 20),
             decoration: BoxDecoration(
-              color: const Color(0xFF2C2C2C),
+              color: AppColors.card,
               borderRadius: BorderRadius.circular(30),
-              border: Border.all(color: neonColor.withOpacity(0.5), width: 2),
+              border: Border.all(color: AppColors.neon.withOpacity(0.55), width: 2),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min, // El cuadro solo ocupa lo que necesita su contenido
-              children: [
-                const SizedBox(height: 20),
-                _customTextField("Fecha", neonColor),
-                const SizedBox(height: 25),
-                
-                // Contenedor para agrupar los datos del bloque de ejercicio
-                Container(
-                  padding: const EdgeInsets.all(15),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[850],
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: neonColor.withOpacity(0.5), width: 1.5),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 8),
+                  _labeledField(
+                    label: 'Fecha',
+                    child: _customTextField(
+                      controller: _date,
+                      hint: 'Ej. Lunes 13 de octubre',
+                    ),
                   ),
-                  child: Column(
-                    children: [
-                      _customTextField("block name|", neonColor, small: true),
-                      const SizedBox(height: 15),
-                      // Con maxLines: 5 hacemos que sea un campo de texto más alto
-                      _customTextField("block description...|", neonColor, small: true, maxLines: 5),
-                      const SizedBox(height: 15),
-                      // Botón 'confirm' estilo píldora
-                      ElevatedButton(
-                        onPressed: () {},
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          side: const BorderSide(color: neonColor, width: 2),
-                          shape: const StadiumBorder(),
+                  const SizedBox(height: 20),
+                  ...List.generate(_blocks.length, (i) {
+                    final draft = _blocks[i];
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.cardInner,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: AppColors.neon.withOpacity(0.45),
+                            width: 1.5,
+                          ),
                         ),
-                        child: const Text("confirm", style: TextStyle(color: neonColor, fontWeight: FontWeight.bold)),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text(
+                              'Bloque ${i + 1}',
+                              style: TextStyle(
+                                color: AppColors.neon.withOpacity(0.9),
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            _customTextField(
+                              controller: draft.name,
+                              hint: 'block name',
+                              small: true,
+                            ),
+                            const SizedBox(height: 12),
+                            _customTextField(
+                              controller: draft.description,
+                              hint: 'block description...',
+                              small: true,
+                              maxLines: 4,
+                            ),
+                            const SizedBox(height: 12),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: _outlineButton(
+                                label: 'confirm',
+                                onPressed: () => _confirmBlock(i),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ],
+                    );
+                  }),
+                  _outlineButton(
+                    label: 'add block',
+                    onPressed: _addBlock,
                   ),
-                ),
-                const SizedBox(height: 25),
-                // Botón 'add block' para cerrar el entrenamiento
-                ElevatedButton(
-                  onPressed: () {},
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.transparent,
-                    side: const BorderSide(color: neonColor, width: 2),
-                    shape: const StadiumBorder(),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: _createWorkout,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.neon,
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: const StadiumBorder(),
+                      ),
+                      child: const Text(
+                        'crear workout',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                    ),
                   ),
-                  child: const Text("add block", style: TextStyle(color: neonColor, fontWeight: FontWeight.bold)),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-          
-          // La X de cerrar arriba a la izquierda, fuera del cuadro principal
           Positioned(
             top: -15,
             left: -15,
             child: GestureDetector(
-              onTap: () => Navigator.of(context).pop(), // Esto cierra el diálogo
+              onTap: () => Navigator.of(context).pop(),
               child: Container(
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF2C2C2C),
+                  color: AppColors.card,
                   shape: BoxShape.circle,
-                  border: Border.all(color: neonColor, width: 2),
+                  border: Border.all(color: AppColors.neon, width: 2),
                 ),
                 child: const Center(
-                  child: Text("X", style: TextStyle(color: neonColor, fontWeight: FontWeight.bold, fontSize: 18)),
+                  child: Text(
+                    'X',
+                    style: TextStyle(
+                      color: AppColors.neon,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -97,23 +238,68 @@ class CreateWorkoutModal extends StatelessWidget {
     );
   }
 
-  // Otro método para los campos de texto, este permite cambiar el tamaño de la letra
-  Widget _customTextField(String hint, Color color, {bool small = false, int maxLines = 1}) {
+  Widget _labeledField({required String label, required Widget child}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: AppColors.neon.withOpacity(0.95),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        child,
+      ],
+    );
+  }
+
+  Widget _outlineButton({required String label, required VoidCallback onPressed}) {
+    return OutlinedButton(
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.neon,
+        side: const BorderSide(color: AppColors.neon, width: 2),
+        shape: const StadiumBorder(),
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
+      ),
+      child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+    );
+  }
+
+  Widget _customTextField({
+    required TextEditingController controller,
+    required String hint,
+    bool small = false,
+    int maxLines = 1,
+  }) {
     return TextField(
+      controller: controller,
       maxLines: maxLines,
-      style: const TextStyle(color: Colors.white, fontSize: 16),
+      style: TextStyle(
+        color: Colors.white,
+        fontSize: small ? 14 : 16,
+      ),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: color.withOpacity(0.5), fontSize: small ? 14 : 16),
+        hintStyle: TextStyle(
+          color: AppColors.neon.withOpacity(0.45),
+          fontSize: small ? 14 : 16,
+        ),
         filled: true,
         fillColor: Colors.transparent,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(15),
-          borderSide: BorderSide(color: color.withOpacity(0.5), width: 1.5),
+          borderSide: BorderSide(
+            color: AppColors.neon.withOpacity(0.45),
+            width: 1.5,
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(15),
-          borderSide: BorderSide(color: color, width: 2),
+          borderSide: const BorderSide(color: AppColors.neon, width: 2),
         ),
       ),
     );
