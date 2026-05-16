@@ -6,6 +6,6 @@ void main() {
   testWidgets('Muestra la pantalla de login al iniciar', (WidgetTester tester) async {
     await tester.pumpWidget(const MyApp());
     expect(find.text('login'), findsOneWidget);
-    expect(find.text('email'), findsOneWidget);
+    expect(find.text('Usuario o email'), findsOneWidget);
   });
 }
