@@ -82,20 +82,14 @@ class TrainApi {
   Future<Map<String, dynamic>> register({
     required String userName,
     required String password,
-    required String name,
-    required String surname,
     required String email,
-    required String fNacIso,
   }) async {
     final res = await _dio.post<Map<String, dynamic>>(
       'auth/register',
       data: {
         'userName': userName,
         'password': password,
-        'name': name,
-        'surname': surname,
         'email': email,
-        'fNac': fNacIso,
       },
     );
     return res.data!;
